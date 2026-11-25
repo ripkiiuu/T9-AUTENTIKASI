@@ -1,0 +1,137 @@
+@base = http://localhost:3000
+@email = rifqy.f1d02410080@unram.ac.id
+@password = Tugas9Rahasia!
+@token = {{login.response.body.$.data.token}}
+@tokenPalsu = tempel-token-yang-payload-nya-diubah-di-sini
+@tokenExpired = tempel-token-dari-percobaan-expiresIn-5s-di-sini
+@id = 1
+
+### 1. Register akun uji (201; jalankan sekali, ulangi akan 409 EMAIL_DUPLIKAT)
+POST {{base}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### 2. Login (200; @token otomatis mengambil data.token dari respons ini)
+# @name login
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### Login gagal: email tidak terdaftar (401 LOGIN_GAGAL)
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "tidak.ada@unram.ac.id",
+  "password": "{{password}}"
+}
+
+### Login gagal: password salah (401 LOGIN_GAGAL, pesan sama dengan di atas)
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "password-salah"
+}
+
+### 3. Daftar produk TANPA token — halaman publik (200)
+# @name publik_F1D02410080
+GET {{base}}/products?halaman=1&ukuran=5
+
+### Detail produk TANPA token — halaman publik (200 / 404)
+GET {{base}}/products/{{id}}
+
+### 4. Tambah produk TANPA token — wajib login (401 TOKEN_DIPERLUKAN)
+# @name tanpaToken_F1D02410080
+POST {{base}}/products
+Content-Type: application/json
+
+{
+  "sku": "BKT-F1D02410080-T9-HTTP",
+  "name": "Buket Uji requests.http F1D02410080",
+  "category": "Wisuda",
+  "price": 150000,
+  "stock": 5
+}
+
+### 5. Tambah produk DENGAN token — wajib login (201)
+# @name denganToken_F1D02410080
+POST {{base}}/products
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "sku": "BKT-F1D02410080-T9-HTTP",
+  "name": "Buket Uji requests.http F1D02410080",
+  "category": "Wisuda",
+  "price": 150000,
+  "stock": 5
+}
+
+### Ubah produk DENGAN token (200); ganti @id dengan id hasil request 5
+PUT {{base}}/products/{{id}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "sku": "BKT-F1D02410080-T9-HTTP",
+  "name": "Buket Uji requests.http Revisi",
+  "category": "Wisuda",
+  "price": 160000,
+  "stock": 5
+}
+
+### Hapus produk DENGAN token (204); ganti @id dengan id hasil request 5
+DELETE {{base}}/products/{{id}}
+Authorization: Bearer {{token}}
+
+### Data dari token (200); tanpa token akan 401 TOKEN_DIPERLUKAN
+GET {{base}}/auth/saya
+Authorization: Bearer {{token}}
+
+### Daftar order dengan include produk TANPA token — halaman publik (200)
+GET {{base}}/orders
+
+### Buat order TANPA token — transaksi dua tabel, wajib login (401)
+POST {{base}}/orders
+Content-Type: application/json
+
+{
+  "productId": 1,
+  "customerName": "Pelanggan F1D02410080",
+  "quantity": 1
+}
+
+### Buat order DENGAN token (201; stok produk berkurang)
+POST {{base}}/orders
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "productId": 1,
+  "customerName": "Pelanggan F1D02410080",
+  "quantity": 1
+}
+
+### Percobaan 1 — token dipalsukan (401 TOKEN_TIDAK_VALID)
+# Login, salin token, buka jwt.io, ubah payload "id" menjadi 999 TANPA mengisi secret,
+# lalu tempel token hasil editan ke @tokenPalsu di bagian atas file ini.
+# @name percobaan1_F1D02410080
+GET {{base}}/auth/saya
+Authorization: Bearer {{tokenPalsu}}
+
+### Percobaan 2 — token expired (401 TOKEN_TIDAK_VALID)
+# Ubah sementara expiresIn menjadi '5s' di src/services/auth.service.js, restart server,
+# login, salin token ke @tokenExpired, tunggu 6 detik, lalu kirim. Kembalikan ke '2h' setelahnya.
+# @name percobaan2_F1D02410080
+GET {{base}}/auth/saya
+Authorization: Bearer {{tokenExpired}}
